@@ -1,53 +1,68 @@
 # RStudio Vibe Coding Plugin
 
-Plugin này cung cấp môi trường làm việc chuẩn hóa "Agentic Enginere Workflow" cho ngôn ngữ R trong RStudio, được thiết kế đặc biệt để tích hợp hoàn hảo và phục vụ cho gói công cụ [ClaudeR] https://github.com/IMNMV/ClaudeR
+R là một công cụ rất mạnh mẽ phục vụ cho thống kê y sinh. Tuy nhiên việc tiếp cận với lập trình là một rào cản lớn với nhân viên y tế. Dự án này là một thử nghiệm cá nhân nhằm mục đích phục vụ cho học lập trình R với Rstudio và tối ưu khả năng làm việc với sự hỗ trợ của AI. Cảm hứng của dự án dựa trên [ClaudeR](https://github.com/IMNMV/ClaudeR).
 
-## Tổng quan
-Plugin chia quá trình phân tích số liệu lâm sàng thành một quy trình Agentic gồm 3 vai trò (Subagents) làm việc tuần tự, đảm bảo tính liêm chính khoa học (Scientific Integrity) và độ chính xác tuyệt đối qua giao thức **Reviewer Zero**.
+Cấu trúc dự án gồm 1 Agent giám sát chính (Supervisor) và 3 Subagents thực thi các tác vụ phân tích, giúp hạn chế tình trạng "tràn" ngữ cảnh, và AI "bịa đặt". Ngoài ra công cụ cũng đi kèm với 1 Subagent tính toán cỡ mẫu, và 1 Subagent tạo bộ dữ liệu giả định, giúp bạn có thể dùng để AI sinh code, sau đó sửa đổi và áp dụng vào dữ liệu nghiên cứu của mình hoặc phục vụ mục đích học tập. Cấu trúc code dựa vào bộ skill từ các nguồn tài liệu uy tín về R [1-3] được trích xuất bằng công cụ [book-to-skill](https://github.com/virgiliojr94/book-to-skill), các quy tắc cốt lõi khi làm việc với AI của [ClaudeR](https://github.com/IMNMV/ClaudeR) và [Supervisor-Skills](https://github.com/HKUSTDial/Supervisor-Skills).
+
+## Hướng dẫn cài đặt
+
+Trên Antigravity hoặc Claude Desktop, chỉ cần copy câu này dán vào khung chat:
+
+> "Hãy cài đặt plugin này cho tôi https://github.com/nguyentranminhchien-ccpl/RStudio-Vibe-Coding-Plugin"
+
+**Về phần kết nối MCP Server:** Plugin này yêu cầu kết nối giữa các công cụ AI với RStudio. Hướng dẫn cài đặt và sử dụng có tại [ClaudeR](https://github.com/IMNMV/ClaudeR).
+
+## Cách hoạt động
+
+Gõ `start r-vibe` vào chat. Sau khi đồng ý với các quy định về liêm chính khoa học khi sử dụng AI, bạn sẽ chọn 1 trong các hướng làm việc trong sơ đồ dưới.
 
 ```mermaid
 graph TD
-    User([Người dùng]) -->|start r-vibe| Init[Khởi tạo Dự án & Hỏi tùy chọn]
-    Init -->|Chạy r_best_practices_prompt| Coder[Subagent 1: Coder]
-    Coder -->|Xử lý Data & Modeling 3 bước| Designer[Subagent 2: Figure Designer]
-    Designer -.->|Hỏi Interactive Prompt| User
-    User -.->|Cung cấp 5 yếu tố Grammar of Graphics| Designer
-    Designer -->|Xuất biểu đồ| Compiler[Subagent 3: Quarto Compiler]
-    Compiler -->|Tạo Skeleton & Audit Reviewer Zero| Final[Báo cáo Quarto chuẩn mực]
+    User([Người dùng]) -->|start r-vibe| Supervisor[Supervisor Agent]
+    Supervisor -->|Hỏi xác nhận Liêm chính| User
+    
+    User -->|Chọn luồng| Branch1(1. Phân tích Dữ liệu)
+    User -->|Chọn luồng| Branch2(2. Tính Cỡ Mẫu)
+    User -->|Chọn luồng| Branch3(3. Tạo Data Giả)
+
+    %% Nhánh 1 chi tiết
+    Branch1 --> Coder[r_coder: Rà soát & Làm sạch]
+    Coder --> Table1[r_coder: Chạy Table 1]
+    Table1 --> Models[r_coder: Mô hình hóa & Hậu kiểm]
+    Models --> Designer[r_designer: Vẽ biểu đồ nghiên cứu]
+    Designer --> Compiler[r_compiler: Đóng gói báo cáo Quarto]
+    
+    %% Nhánh 2
+    Branch2 --> Sampler[r_sampler: Hỏi thông số -> Tính N -> Xuất LaTeX]
+    
+    %% Nhánh 3
+    Branch3 --> Mock[r_mock_generator: Phỏng vấn các câu hỏi về bộ dữ liệu]
+    Mock --> CSV[Xuất file mock_data.csv]
+    CSV -->|Hỏi ý kiến| Branch1
 ```
 
-### 3 Subagents Cốt lõi
-1. **Data & Modeling Coder:** Xử lý dữ liệu (ETL) và xây dựng mô hình thống kê truyền thống (Linear, Logistic, Cox). 
-   - **Interactive ETL:** Không tự động ép kiểu dữ liệu. Sẽ in danh sách biến và hỏi ý kiến User trước khi xử lý.
-   - **Interactive Descriptive Statistics:** Bắt buộc liệt kê các giá trị của biến và hỏi User cách gom nhóm/mô tả trước khi lập bảng mô tả.
-   - **Modeling 3 bước:** Bắt buộc tuân thủ `Fitting` -> `Tuning` -> `Evaluation`. Áp dụng các quy tắc chẩn đoán khắt khe (như VIF, Cook's distance, Proportional Hazards, Residuals plots).
-2. **Figure Designer:** Chuyên viên vẽ biểu đồ `ggplot2` và `ggsci`. Hoạt động theo cơ chế **Hỏi trước khi vẽ (Grammar of Graphics)**: Luôn tương tác và thu thập 5 yếu tố cốt lõi (Aesthetics, Geometries, Facets, Themes, Labels) từ người dùng trước khi phác thảo biểu đồ.
-3. **Quarto Compiler:** Phụ trách biên dịch báo cáo cuối cùng. Chỉ tạo bộ khung (skeleton) chuẩn mực và cung cấp các ghi chú định hướng viết lách (Margin Notes) thay vì sinh "văn mẫu", đảm bảo tôn trọng hoàn toàn quyền tác giả của người dùng.
+## Subagents
 
-## Cấu trúc Kiến thức (Dependencies)
-Quá trình phân tích thừa hưởng nền tảng tư duy sâu sắc từ các kỹ năng:
-- **`intro-r-vn`**: Phân tích số liệu và biểu đồ bằng tiếng Việt theo giáo trình Y khoa.
-- **`mangiafico-r-biostats`**: Tiêu chuẩn Biostatistics (thống kê sinh học) chuyên sâu.
-- **`tidyverse-r4ds`**: Kỹ thuật xử lý dữ liệu Tidyverse.
-- **`r-clinical-rules`**: Quy tắc phân tích dữ liệu y khoa chuẩn mực của dự án.
-- **`vibe-research-workflow`**: Cốt lõi tư duy liêm chính học thuật.
+1. **`r_coder` (Mã hóa & thống kê)**
+   Bao gồm các bước làm việc từ trực quan hoá dữ liệu, làm sạch số liệu theo chuẩn TIDY, thống kê mô tả, thống kê suy luận. Đối với mỗi bước đều đảm bảo AI chỉ viết code và hướng dẫn. Người dùng phải đưa ra quyết định cuối cùng.
 
-## Hướng dẫn Sử dụng (Quick Start)
+2. **`r_designer` (Vẽ biểu đồ)**
+  Xây dựng biểu đồ tuân theo "grammar of graphics" dựa trên thư viện ggplot2 có sẵn trong tidyverse.
 
-1. Để khởi động quy trình, chỉ cần cung cấp câu lệnh:
-   ```text
-   start r-vibe
-   ```
-2. Ngay lập tức, Agent sẽ thực thi 2 nhiệm vụ khởi động:
-   - **Lập kế hoạch (Bắt buộc):** Dùng công cụ `r-studio::create_task_list` để tạo danh sách TO-DO, giúp theo dõi sát sao tiến độ.
-   - **Xác nhận Kiến trúc:** In ra Sơ đồ Workflow (Mermaid), xin xác nhận, và cung cấp 2 tùy chọn kiến trúc nâng cao:
-     - **Tùy chọn 1:** Kích hoạt `ClaudeR::multi_agent_prompt()` (Khuyên dùng khi có nhiều file song song).
-     - **Tùy chọn 2:** Kích hoạt `ClaudeR::lab_mode_prompt()` (Siêu kiểm duyệt, dùng tiến trình ngầm `async` cho dữ liệu khổng lồ / Tạp chí Q1).
-     - *(Mặc định là "Không" đối với cả hai để dùng cấu trúc Role-play tối ưu tốc độ).*
-3. Trong suốt quá trình thực thi:
-   - **Xử lý lỗi (Self-debugging):** Nếu script R gặp lỗi, Agent sẽ dừng lại báo cáo và xin phép trước khi tìm cách sửa mã nguồn.
-   - **Minh bạch số liệu:** Agent sẽ sử dụng gói `ClaudeR` và `r-studio` MCP để chạy code phân tích, tuyệt đối không "đoán" kết quả (Zero Hallucination).
-4. **Kiểm duyệt cuối cùng (Reviewer Zero Protocol)**: Khi đóng gói báo cáo Quarto, `ClaudeR::reviewer_zero_prompt()` sẽ được kích hoạt để tự động kiểm tra chéo (Audit) 4 bước cho từng con số, đảm bảo những gì ghi trong văn bản khớp 100% với dữ liệu xuất ra từ phần mềm R.
+3. **`r_compiler` (Quarto)**
+   Giúp người dùng biên soạn phân tích và diễn giải kết quả nghiên cứu theo cấu trúc file markdown của Quarto. Tuân thủ quy tắc: Cấm tự bịa lời bàn luận khoa học. Cấm sinh tài liệu tham khảo ảo. Mọi con số đều phải lấy trực tiếp từ R (inline code). Không điền số tĩnh (hardcode).
 
----
-*Plugin được thiết kế cho những bác sĩ / nhà nghiên cứu y khoa, hướng đến sự hoàn mỹ và liêm chính trong từng báo cáo thống kê.*
+4. **`r_sampler` (Máy tính cỡ mẫu)**
+   Hỗ trợ tính toán cỡ mẫu trong xây dựng đề cương nghiên cứu. tự động xuất đoạn mã LaTeX để copy công thức vào trình biên soạn.
+
+5. **`r_mock_generator` (Xưởng tạo dữ liệu giả)**
+   Khi bạn cần số liệu để giảng dạy hoặc test code. Nó sẽ phỏng vấn bạn 7 câu (tỉ lệ khuyết thiếu, phân phối lệch, số lượng biến...) rồi xuất ra một file `.csv` dữ liệu giả định có cấu trúc. 
+
+## Liên hệ và Góp ý
+Các góp ý và đóng góp của bạn là nguồn dữ liệu đáng quý giúp mình có thể cải tiến dự án này tốt hơn. Mọi liên hệ vui lòng qua email: nguyentranminhchien.hpmu@gmail.com. Trân trọng!
+
+## Tài liệu tham khảo
+1. S. Mangiafico. S. An R Companion for the Handbook of Biological Statistics. 1.4.3. 2026. http://rcompanion.org/documents/RCompanionBioStatistics.pdf
+2. Tuan Nguyen Van. Phân Tích Số Liệu và Biểu Đồ Bằng R.
+3. Lortie C. R for Data Science. J Stat Softw. 2017;77(Book Review 1). doi:10.18637/jss.v077.b01
+
