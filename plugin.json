@@ -1,5 +1,7 @@
 {
   "name": "rstudio-vibe-plugin",
   "description": "Bộ quy trình làm việc chuẩn RStudio (Vibe Coding) và các hướng dẫn phân tích R (Intro R, Mangiafico, Tidyverse)",
-  "version": "1.1.0"
+  "version": "1.2.0",
+  "min_r_version": "4.3.0",
+  "required_mcp": "ClaudeR >= 0.5.0"
 }
